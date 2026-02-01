@@ -1,0 +1,164 @@
+#!/usr/bin/env python3
+
+import subprocess
+import os
+import time
+import datetime
+import pyfiglet
+from rich.console import Console
+from rich.table import Table
+from rich.panel import Panel
+from rich.progress import track
+from lxml import etree
+
+console = Console()
+
+BASE_DIR = os.getcwd()
+XML_DIR = f"{BASE_DIR}/scans/xml"
+REPORT_DIR = f"{BASE_DIR}/scans/reports"
+LOG_DIR = f"{BASE_DIR}/logs"
+
+# =========================
+# BANNER
+# =========================
+def banner():
+    os.system("clear")
+    art = pyfiglet.figlet_format("cryptod3stiny")
+    console.print(art, style="bold green")
+    console.print(
+        Panel(
+            "[bold cyan]CDNS - CryptoDestiny Network Scanner[/bold cyan]\n"
+            "[white]Advanced Nmap Engine • NSE • OS Detection[/white]\n\n"
+            "[green]Author:[/green] cryptod3stiny",
+            border_style="green"
+        )
+    )
+
+# =========================
+# MENU
+# =========================
+def menu():
+    table = Table(title="Scan Modules", border_style="cyan")
+    table.add_column("ID", justify="center", style="yellow")
+    table.add_column("Module", style="white")
+
+    table.add_row("1", "🔍 Host Discovery")
+    table.add_row("2", "🚪 TCP Port Scan (Top Ports)")
+    table.add_row("3", "🔥 Full TCP Scan (1-65535)")
+    table.add_row("4", "🧠 Service & Version Detection")
+    table.add_row("5", "⚠️ Vulnerability Scan (NSE)")
+    table.add_row("6", "🖥️ OS Detection")
+    table.add_row("7", "📡 UDP Scan (Common Ports)")
+    table.add_row("8", "📂 Default NSE Scripts")
+    table.add_row("0", "❌ Exit")
+
+    console.print(table)
+    return console.input("\n[bold green]Select option → [/bold green]")
+
+# =========================
+# RUN NMAP
+# =========================
+def run_scan(cmd, target):
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    safe_target = target.replace("/", "_")
+    xml_file = f"{XML_DIR}/{safe_target}_{timestamp}.xml"
+    report_file = f"{REPORT_DIR}/{safe_target}_{timestamp}.txt"
+
+    full_cmd = cmd + ["-oX", xml_file]
+
+    console.print(f"\n[cyan]Scanning {target}...[/cyan]\n")
+
+    for _ in track(range(30), description="Executing Nmap"):
+        time.sleep(0.04)
+
+    subprocess.run(full_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    parse_results(xml_file, report_file)
+
+# =========================
+# PARSE XML RESULTS
+# =========================
+def parse_results(xml_path, report_path):
+    tree = etree.parse(xml_path)
+    root = tree.getroot()
+
+    table = Table(title="Open Ports", border_style="green")
+    table.add_column("Port", justify="center")
+    table.add_column("Protocol")
+    table.add_column("Service")
+    table.add_column("Version")
+
+    report_lines = []
+
+    for host in root.findall("host"):
+        for port in host.findall(".//port"):
+            state = port.find("state").get("state")
+            if state == "open":
+                portid = port.get("portid")
+                proto = port.get("protocol")
+                service = port.find("service")
+
+                name = service.get("name") if service is not None else "unknown"
+                version = service.get("version") if service is not None else ""
+
+                table.add_row(portid, proto, name, version)
+                report_lines.append(f"{portid}/{proto} {name} {version}")
+
+    if report_lines:
+        console.print(table)
+    else:
+        console.print("[yellow]No open ports found.[/yellow]")
+
+    with open(report_path, "w") as f:
+        f.write("\n".join(report_lines))
+
+    console.print(f"\n[green]Report saved:[/green] {report_path}")
+
+# =========================
+# MAIN
+# =========================
+def main():
+    while True:
+        banner()
+        choice = menu()
+
+        if choice == "0":
+            console.print("\n[red]Exiting crypto-scan. Hack responsibly 👋[/red]")
+            break
+
+        target = console.input("\n[bold yellow]Target IP / Network → [/bold yellow]")
+
+        if choice == "1":
+            cmd = ["nmap", "-sn", target]
+
+        elif choice == "2":
+            cmd = ["nmap", "-T4", "-F", target]
+
+        elif choice == "3":
+            cmd = ["nmap", "-p-", "-T4", target]
+
+        elif choice == "4":
+            cmd = ["nmap", "-sV", "-sC", target]
+
+        elif choice == "5":
+            cmd = ["nmap", "--script", "vuln", target]
+
+        elif choice == "6":
+            cmd = ["nmap", "-O", target]
+
+        elif choice == "7":
+            cmd = ["nmap", "-sU", "--top-ports", "20", target]
+
+        elif choice == "8":
+            cmd = ["nmap", "--script", "default", target]
+
+        else:
+            console.print("[red]Invalid option[/red]")
+            time.sleep(1)
+            continue
+
+        run_scan(cmd, target)
+        console.input("\n[bold cyan]Press ENTER to continue...[/bold cyan]")
+
+if __name__ == "__main__":
+    main()
