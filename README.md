@@ -38,4 +38,31 @@ El proyecto actúa como un wrapper profesional de Nmap, integrando detección de
 ---
 
 ## 📁 Estructura del proyecto
+crypto-scan/
+├── cdns.py
+├── README.md
+├── logs/
+└── scans/
+├── reports/
+└── xml/
 
+
+---
+
+## ⚙️ Requisitos
+
+### Sistema
+- Linux (recomendado: **Kali Linux**)
+- Nmap instalado
+
+### Dependencias Python
+```bash
+pip3 install --user rich pyfiglet lxml
+
+🚀 Instalación
+git clone https://github.com/TU-USUARIO/crypto-scan.git
+cd crypto-scan
+chmod +x cdns.py
+
+▶️ Uso
+./cdns.py
